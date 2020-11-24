@@ -3,7 +3,7 @@
     "baseUrl": ".",
     "rootDir": "src",
     "outDir": "build",
-    "target": "ES6",
+    "target": "ES5",
     "allowJs": false,
     "strict": true,
     "module": "ESNext",
@@ -14,8 +14,9 @@
     "allowSyntheticDefaultImports": true,
     "paths": {
       "@/*": ["src/*"],
+      "@components/*": ["./src/components/*"],
     },
     "resolveJsonModule": true,
   },
-  "exclude": ["build"]
+  "exclude": ["build", "node_modules"]
 }

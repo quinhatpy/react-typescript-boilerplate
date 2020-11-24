@@ -8,9 +8,9 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const CompressionPlugin = require('compression-webpack-plugin')
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer')
   .BundleAnalyzerPlugin
+const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin')
+
 require('dotenv').config()
-const cssnano = require('cssnano')
-const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin')
 
 module.exports = (env, agrv) => {
   const isDev = agrv.mode === 'development'
@@ -73,105 +73,114 @@ module.exports = (env, agrv) => {
     module: {
       rules: [
         {
-          test: /\.(ts|tsx)$/,
-          use: [
+          oneOf: [
             {
-              loader: 'babel-loader',
-              options: {
-                presets: [
-                  '@babel/preset-env',
-                  '@babel/preset-react',
-                  '@babel/preset-typescript',
-                ],
-                plugins: [
-                  'babel-plugin-transform-export-extensions',
-                  '@babel/plugin-proposal-class-properties',
-                  '@babel/plugin-proposal-object-rest-spread',
-                  '@babel/plugin-transform-runtime',
-                  'babel-plugin-add-react-displayname',
-                ],
-              },
-            },
-            'eslint-loader',
-          ],
-          exclude: /node_modules/,
-        },
-        {
-          test: /\.global\.(s[ac]ss|css)$/,
-          use: [
-            MiniCssExtractPlugin.loader,
-            {
-              loader: 'css-loader',
-              options: {
-                sourceMap: isDev ? true : false,
-              },
-            },
-            {
-              loader: 'sass-loader',
-              options: {
-                sourceMap: isDev ? true : false,
-              },
-            },
-          ],
-        },
-        {
-          test: /\.(s[ac]ss|css)$/,
-          use: [
-            MiniCssExtractPlugin.loader,
-            {
-              loader: 'css-loader',
-              options: {
-                sourceMap: isDev ? true : false,
-                modules: {
-                  mode: 'local',
-                  localIdentName: '[local]_[hash:base64:4]',
-                  exportLocalsConvention: 'camelCase',
+              test: /\.(ts|tsx|js|jsx)$/,
+              use: [
+                {
+                  loader: 'babel-loader',
+                  options: {
+                    presets: [
+                      '@babel/preset-env',
+                      '@babel/preset-react',
+                      '@babel/preset-typescript',
+                    ],
+                    plugins: [
+                      'babel-plugin-transform-export-extensions',
+                      '@babel/plugin-proposal-class-properties',
+                      '@babel/plugin-proposal-object-rest-spread',
+                      '@babel/plugin-transform-runtime',
+                      'babel-plugin-add-react-displayname',
+                    ],
+                  },
                 },
-              },
+                'eslint-loader',
+              ],
+              exclude: /node_modules/,
             },
             {
-              loader: 'sass-loader',
-              options: {
-                sourceMap: isDev ? true : false,
-              },
+              test: /\.global\.(s[ac]ss|css)$/,
+              use: [
+                isDev
+                  ? MiniCssExtractPlugin.loader
+                  : { loader: 'style-loader' },
+                {
+                  loader: 'css-loader',
+                  options: {
+                    sourceMap: isDev ? true : false,
+                  },
+                },
+                {
+                  loader: 'sass-loader',
+                  options: {
+                    sourceMap: isDev ? true : false,
+                  },
+                },
+              ],
             },
-          ],
-        },
-        {
-          test: /\.(eot|ttf|woff|woff2)$/,
-          use: [
             {
-              loader: 'file-loader',
-              options: {
-                name: isDev
-                  ? '[path][name].[ext]'
-                  : 'static/fonts/[name].[ext]',
-              },
+              test: /\.(s[ac]ss|css)$/,
+              use: [
+                isDev
+                  ? MiniCssExtractPlugin.loader
+                  : { loader: 'style-loader' },
+                {
+                  loader: 'css-loader',
+                  options: {
+                    sourceMap: isDev ? true : false,
+                    modules: {
+                      mode: 'local',
+                      localIdentName: '[local]_[hash:base64:4]',
+                      exportLocalsConvention: 'camelCase',
+                    },
+                  },
+                },
+                {
+                  loader: 'sass-loader',
+                  options: {
+                    sourceMap: isDev ? true : false,
+                  },
+                },
+              ],
             },
-          ],
-        },
-        {
-          test: /\.icon\.svg$/,
-          use: [
             {
-              loader: require.resolve('@svgr/webpack'),
-              options: {
-                icon: true,
-              },
+              test: /\.(eot|ttf|woff|woff2)$/,
+              use: [
+                {
+                  loader: 'file-loader',
+                  options: {
+                    name: isDev
+                      ? '[path][name].[ext]'
+                      : 'static/fonts/[name].[ext]',
+                  },
+                },
+              ],
             },
-          ],
-        },
-        {
-          test: /\.(png|svg|jpg|gif)$/,
-          use: [
             {
-              loader: 'url-loader',
-              options: {
-                limit: 5120,
-                name: isDev
-                  ? '[path][name].[ext]'
-                  : 'static/media/[name].[contenthash:6].[ext]',
-              },
+              test: /\.icon\.svg$/,
+              use: [
+                {
+                  loader: require.resolve('@svgr/webpack'),
+                  options: {
+                    icon: true,
+                    svgo: true,
+                  },
+                },
+              ],
+            },
+            {
+              test: /\.(png|svg|jpg|gif)$/,
+              use: [
+                {
+                  loader: 'url-loader',
+                  options: {
+                    limit: 5120,
+                    name: isDev
+                      ? '[path][name].[ext]'
+                      : 'static/media/[name].[contenthash:6].[ext]',
+                  },
+                },
+              ],
             },
           ],
         },
@@ -179,9 +188,7 @@ module.exports = (env, agrv) => {
     },
     resolve: {
       extensions: ['.tsx', '.ts', '.jsx', '.js'],
-      alias: {
-        '@': path.resolve('src'),
-      },
+      plugins: [new TsconfigPathsPlugin()],
     },
     output: {
       path: path.resolve('build'),
@@ -202,7 +209,7 @@ module.exports = (env, agrv) => {
       contentBase: 'public',
       port: process.env.PORT,
       hot: true,
-      host: process.env.HOST || '0.0.0.0',
+      host: process.env.HOST || 'localhost',
       watchContentBase: true,
       historyApiFallback: true,
       open: true,
@@ -211,24 +218,6 @@ module.exports = (env, agrv) => {
     optimization: {
       minimize: true,
       usedExports: true,
-      minimizer: [
-        new OptimizeCssAssetsPlugin({
-          assetNameRegExp: /\.css$/g,
-          cssProcessor: cssnano,
-          cssProcessorOptions: Object.assign(
-            {
-              zindex: false,
-              discardComments: true,
-            },
-            isDev && {
-              map: {
-                inline: false,
-                annotation: true,
-              },
-            },
-          ),
-        }),
-      ],
       runtimeChunk: 'single',
       moduleIds: 'deterministic',
       splitChunks: {
