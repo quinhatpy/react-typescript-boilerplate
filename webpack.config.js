@@ -9,12 +9,17 @@ const CompressionPlugin = require('compression-webpack-plugin')
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer')
   .BundleAnalyzerPlugin
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin')
+const TerserPlugin = require('terser-webpack-plugin')
+const CSSNano = require('cssnano')
+const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin')
 
 require('dotenv').config()
 
 module.exports = (env, agrv) => {
   const isDev = agrv.mode === 'development'
   const isAnalyze = process.env.BUILD_TOOL_ENABLE_BUNDLE_ANALYZER === 'true'
+  const isEnableSourceMap = process.env.BUILD_TOOL_ENABLE_SOURCE_MAP === 'true'
+  const isEnableDebugJS = process.env.BUILD_TOOL_ENABLE_DEBUG_JS === 'true'
   const commonLibs = ['react', 'react-dom', 'react-redux', 'redux']
   const basePlugins = [
     new Dotenv(),
@@ -101,9 +106,7 @@ module.exports = (env, agrv) => {
             {
               test: /\.global\.(s[ac]ss|css)$/,
               use: [
-                isDev
-                  ? MiniCssExtractPlugin.loader
-                  : { loader: 'style-loader' },
+                MiniCssExtractPlugin.loader,
                 {
                   loader: 'css-loader',
                   options: {
@@ -121,9 +124,7 @@ module.exports = (env, agrv) => {
             {
               test: /\.(s[ac]ss|css)$/,
               use: [
-                isDev
-                  ? MiniCssExtractPlugin.loader
-                  : { loader: 'style-loader' },
+                MiniCssExtractPlugin.loader,
                 {
                   loader: 'css-loader',
                   options: {
@@ -216,7 +217,50 @@ module.exports = (env, agrv) => {
     },
     plugins: isDev ? basePlugins : prodPlugins,
     optimization: {
-      minimize: true,
+      minimize: !isDev,
+      minimizer: [
+        !isDev
+          ? new TerserPlugin({
+              parallel: true,
+              terserOptions: {
+                parse: {
+                  ecma: 8,
+                },
+                compress: {
+                  comparisons: false,
+                  inline: 2,
+                  drop_console: !isEnableDebugJS,
+                },
+                mangle: {
+                  safari10: true,
+                },
+                output: {
+                  ecma: 5,
+                  comments: false,
+                  ascii_only: true,
+                },
+              },
+            })
+          : null,
+        !isDev
+          ? new OptimizeCssAssetsPlugin({
+              assetNameRegExp: /\.css$/g,
+              cssProcessor: CSSNano,
+              cssProcessorOptions: Object.assign(
+                {
+                  zindex: false,
+                  discardComments: true,
+                },
+                isEnableSourceMap && {
+                  map: {
+                    inline: false,
+                    annotation: true,
+                  },
+                },
+              ),
+            })
+          : null,
+      ].filter(Boolean),
       usedExports: true,
       runtimeChunk: 'single',
       moduleIds: 'deterministic',
@@ -245,10 +289,12 @@ module.exports = (env, agrv) => {
         },
       },
     },
-    performance: {
-      maxEntrypointSize: 800000,
-      maxAssetSize: 3000000,
-      hints: 'warning',
-    },
+    performance: !isDev
+      ? {
+          maxEntrypointSize: 800000,
+          maxAssetSize: 3000000,
+          hints: 'warning',
+        }
+      : {},
   }
 }
